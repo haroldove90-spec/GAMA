@@ -284,8 +284,9 @@ export async function generatePDFInstance(elementId: string): Promise<jsPDF> {
     container.style.top = '-99999px';
     container.style.left = '-99999px';
     container.style.width = '800px';
-    container.style.height = '1100px';
-    container.style.overflow = 'hidden';
+    container.style.height = 'auto';
+    container.style.minHeight = '1100px';
+    container.style.overflow = 'visible';
     container.style.zIndex = '-9999';
     container.style.pointerEvents = 'none';
     container.style.backgroundColor = '#FFFFFF';
@@ -300,9 +301,9 @@ export async function generatePDFInstance(elementId: string): Promise<jsPDF> {
     clone.style.width = '800px';
     clone.style.maxWidth = '800px';
     clone.style.minWidth = '800px';
-    clone.style.height = '1100px';
+    clone.style.height = 'auto';
     clone.style.minHeight = '1100px';
-    clone.style.maxHeight = '1100px';
+    clone.style.maxHeight = 'none';
     clone.style.position = 'relative';
     clone.style.boxSizing = 'border-box';
 
@@ -322,6 +323,9 @@ export async function generatePDFInstance(elementId: string): Promise<jsPDF> {
 
     container.appendChild(clone);
 
+    // Measure the actual height of the clone inside the DOM
+    const actualHeight = Math.max(clone.scrollHeight, clone.offsetHeight, 1100);
+
     // 5. Render using html2canvas-pro with optimal settings
     const canvas = await html2canvas(clone, {
       scale: 2, // Double resolution for crisp text
@@ -330,21 +334,23 @@ export async function generatePDFInstance(elementId: string): Promise<jsPDF> {
       allowTaint: true,
       backgroundColor: '#FFFFFF',
       width: 800,
-      height: 1100,
+      height: actualHeight,
       windowWidth: 800,
+      windowHeight: actualHeight,
     });
 
     const imgData = canvas.toDataURL('image/png');
     
-    // Create PDF with Letter size (8.5 x 11 inches)
+    // Create PDF with dynamic page size to prevent cutoff
+    const aspect = actualHeight / 800;
+    const pdfWidth = 8.5;
+    const pdfHeight = 8.5 * aspect;
+
     const pdf = new jsPDF({
       orientation: 'portrait',
       unit: 'in',
-      format: 'letter'
+      format: [pdfWidth, pdfHeight]
     });
-
-    const pdfWidth = 8.5;
-    const pdfHeight = 11;
     
     // Center image on the page
     pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight, undefined, 'FAST');
