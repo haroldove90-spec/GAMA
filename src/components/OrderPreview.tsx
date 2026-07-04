@@ -1,3 +1,4 @@
+import { useState, useEffect, useRef } from 'react';
 import { ServiceOrder } from '../types';
 import { Phone, Mail, MapPin, ShieldCheck, Check, Laptop, Volume2, Monitor, Home } from 'lucide-react';
 
@@ -7,6 +8,35 @@ interface OrderPreviewProps {
 }
 
 export default function OrderPreview({ order, idToCapture }: OrderPreviewProps) {
+  const [scale, setScale] = useState(1);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleResize = () => {
+      if (!containerRef.current) return;
+      const parentWidth = containerRef.current.parentElement?.clientWidth || window.innerWidth;
+      // Subtract some padding to look nice on mobile
+      const targetPadding = window.innerWidth < 640 ? 16 : 48;
+      const availableWidth = parentWidth - targetPadding;
+      if (availableWidth < 800) {
+        setScale(availableWidth / 800);
+      } else {
+        setScale(1);
+      }
+    };
+
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    
+    // Also trigger on a small timeout to make sure parent elements are fully laid out
+    const timer = setTimeout(handleResize, 100);
+
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      clearTimeout(timer);
+    };
+  }, []);
+
   const getEquipmentIcon = (type: string) => {
     switch (type) {
       case 'audio': return <Volume2 className="w-5 h-5 text-slate-700" />;
@@ -18,13 +48,33 @@ export default function OrderPreview({ order, idToCapture }: OrderPreviewProps) 
   };
 
   return (
-    <div className="bg-slate-100 p-2 sm:p-6 overflow-auto flex justify-center" id="preview-outer-container">
-      {/* Container forced to Letter Aspect Ratio inside PDF Generator, styled beautifully here */}
-      <div
-        id={idToCapture}
-        className="bg-white w-[800px] min-h-[1100px] p-6 shadow-md relative text-slate-800 font-sans select-none flex flex-col justify-between"
-        style={{ boxSizing: 'border-box' }}
+    <div 
+      ref={containerRef}
+      className="bg-slate-100 p-2 sm:p-6 overflow-hidden flex justify-center items-start w-full" 
+      id="preview-outer-container"
+    >
+      <div 
+        className="flex-shrink-0 overflow-visible flex justify-center"
+        style={{
+          width: `${800 * scale}px`,
+          height: `${1100 * scale}px`,
+        }}
       >
+        <div
+          style={{
+            transform: `scale(${scale})`,
+            transformOrigin: 'top left',
+            width: '800px',
+            height: '1100px',
+          }}
+          className="flex-shrink-0"
+        >
+          {/* Container forced to Letter Aspect Ratio inside PDF Generator, styled beautifully here */}
+          <div
+            id={idToCapture}
+            className="bg-white w-[800px] min-h-[1100px] p-6 shadow-md relative text-slate-800 font-sans select-none flex flex-col justify-between"
+            style={{ boxSizing: 'border-box' }}
+          >
         <div>
           {/* HEADER SECTION */}
           <div className="flex justify-between items-start mb-4" id="preview-header">
@@ -414,6 +464,8 @@ export default function OrderPreview({ order, idToCapture }: OrderPreviewProps) 
             <span>💻</span>
             <span>🧺</span>
           </div>
+        </div>
+      </div>
         </div>
       </div>
     </div>

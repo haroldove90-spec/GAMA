@@ -48,13 +48,54 @@ function oklchToRgb(l: number, c: number, h: number, a: number = 1): string {
 }
 
 /**
- * Replaces all occurrences of oklch(...) inside a CSS string with standard rgb/rgba color values.
+ * Converts an OKLAB color to standard sRGB.
  */
-function replaceOklchInString(cssText: string): string {
-  // Matches oklch(L C H) or oklch(L C H / A) with space or comma separators
-  const oklchRegex = /oklch\(\s*([\d.]+%?|none)(?:\s+|,\s*)([\d.]+%?|none)(?:\s+|,\s*)([\d.]+(?:deg|rad|grad|turn)?|none)(?:\s*(?:\/|,)\s*([\d.]+%?|none))?\s*\)/gi;
+function oklabToRgb(l: number, aVal: number, bVal: number, a: number = 1): string {
+  // Convert to non-linear LMS
+  const l_ = l + 0.3963377774 * aVal + 0.2158037573 * bVal;
+  const m_ = l - 0.1055613458 * aVal - 0.0638541728 * bVal;
+  const s_ = l - 0.0894841775 * aVal - 1.2914855480 * bVal;
 
-  return cssText.replace(oklchRegex, (_match, lStr, cStr, hStr, aStr) => {
+  // Convert to linear LMS
+  const lLinear = l_ * l_ * l_;
+  const mLinear = m_ * m_ * m_;
+  const sLinear = s_ * s_ * s_;
+
+  // Convert linear LMS to linear sRGB
+  let r = +4.0767416621 * lLinear - 3.3077115913 * mLinear + 0.2309699292 * sLinear;
+  let g = -1.2684380046 * lLinear + 2.6097574011 * mLinear - 0.3413193965 * sLinear;
+  let b = -0.0041960863 * lLinear - 0.7034186147 * mLinear + 1.7076147010 * sLinear;
+
+  // Gamma correction function
+  const f = (x: number) => {
+    return x <= 0.0031308 ? 12.92 * x : 1.055 * Math.pow(x, 1 / 2.4) - 0.055;
+  };
+
+  // Clamp linear values between 0 and 1
+  r = Math.max(0, Math.min(1, r));
+  g = Math.max(0, Math.min(1, g));
+  b = Math.max(0, Math.min(1, b));
+
+  // Scale to 0-255
+  const r255 = Math.round(f(r) * 255);
+  const g255 = Math.round(f(g) * 255);
+  const b255 = Math.round(f(b) * 255);
+
+  if (a < 1) {
+    return `rgba(${r255}, ${g255}, ${b255}, ${a})`;
+  }
+  return `rgb(${r255}, ${g255}, ${b255})`;
+}
+
+/**
+ * Replaces all occurrences of oklch(...) and oklab(...) inside a CSS string with standard rgb/rgba color values.
+ */
+export function sanitizeCssColors(cssText: string): string {
+  if (!cssText) return '';
+
+  // 1. Clean oklch
+  const oklchRegex = /oklch\(\s*([\d.]+%?|none)(?:\s+|,\s*)([\d.]+%?|none)(?:\s+|,\s*)([\d.]+(?:deg|rad|grad|turn)?|none)(?:\s*(?:\/|,)\s*([\d.]+%?|none))?\s*\)/gi;
+  let result = cssText.replace(oklchRegex, (_match, lStr, cStr, hStr, aStr) => {
     try {
       const cleanStr = (s: string) => s.trim().toLowerCase() === 'none' ? '0' : s;
       const lStrClean = cleanStr(lStr);
@@ -91,6 +132,39 @@ function replaceOklchInString(cssText: string): string {
       return 'rgb(0, 0, 0)';
     }
   });
+
+  // 2. Clean oklab
+  const oklabRegex = /oklab\(\s*([\d.-]+%?|none)(?:\s+|,\s*)([\d.-]+%?|none)(?:\s+|,\s*)([\d.-]+%?|none)(?:\s*(?:\/|,)\s*([\d.-]+%?|none))?\s*\)/gi;
+  result = result.replace(oklabRegex, (_match, lStr, aStr, bStr, alphaStr) => {
+    try {
+      const cleanStr = (s: string) => s.trim().toLowerCase() === 'none' ? '0' : s;
+      const lStrClean = cleanStr(lStr);
+      const aStrClean = cleanStr(aStr);
+      const bStrClean = cleanStr(bStr);
+
+      let l = lStrClean.endsWith('%') ? parseFloat(lStrClean) / 100 : parseFloat(lStrClean);
+      let aVal = aStrClean.endsWith('%') ? parseFloat(aStrClean) / 100 : parseFloat(aStrClean);
+      let bVal = bStrClean.endsWith('%') ? parseFloat(bStrClean) / 100 : parseFloat(bStrClean);
+
+      let a = 1;
+      if (alphaStr) {
+        const aStrClean = alphaStr.trim().toLowerCase() === 'none' ? '1' : alphaStr;
+        a = aStrClean.endsWith('%') ? parseFloat(aStrClean) / 100 : parseFloat(aStrClean);
+      }
+
+      // Safeguards against NaN
+      l = isNaN(l) ? 0 : l;
+      aVal = isNaN(aVal) ? 0 : aVal;
+      bVal = isNaN(bVal) ? 0 : bVal;
+      a = isNaN(a) ? 1 : a;
+
+      return oklabToRgb(l, aVal, bVal, a);
+    } catch (e) {
+      return 'rgb(0, 0, 0)';
+    }
+  });
+
+  return result;
 }
 
 /**
@@ -130,8 +204,8 @@ export async function generatePDFInstance(elementId: string): Promise<jsPDF> {
           disabled: styleEl.disabled,
         });
         
-        // Rewrite the styles in-place to use rgb fallback instead of oklch
-        styleEl.textContent = replaceOklchInString(originalText);
+        // Rewrite the styles in-place to use rgb fallback instead of oklch / oklab
+        styleEl.textContent = sanitizeCssColors(originalText);
       } else if (el.tagName === 'LINK') {
         const linkEl = el as HTMLLinkElement;
         originalStyleElements.push({
@@ -144,8 +218,8 @@ export async function generatePDFInstance(elementId: string): Promise<jsPDF> {
           const response = await fetch(linkEl.href);
           if (response.ok) {
             const cssText = await response.text();
-            if (cssText.includes('oklch')) {
-              const sanitizedCss = replaceOklchInString(cssText);
+            if (cssText.includes('oklch') || cssText.includes('oklab')) {
+              const sanitizedCss = sanitizeCssColors(cssText);
               
               // Create a temp style tag to replace this link tag
               const tempStyle = document.createElement('style');
@@ -164,17 +238,17 @@ export async function generatePDFInstance(elementId: string): Promise<jsPDF> {
       }
     }
 
-    // 2. Traverse and sanitize inline oklch styles on ALL DOM elements
+    // 2. Traverse and sanitize inline oklch/oklab styles on ALL DOM elements
     const allElements = document.querySelectorAll('*');
     for (const el of Array.from(allElements)) {
       const htmlEl = el as HTMLElement;
       const styleAttr = htmlEl.getAttribute('style');
-      if (styleAttr && styleAttr.includes('oklch')) {
+      if (styleAttr && (styleAttr.includes('oklch') || styleAttr.includes('oklab'))) {
         originalInlineElements.push({
           element: htmlEl,
           originalStyle: styleAttr,
         });
-        htmlEl.setAttribute('style', replaceOklchInString(styleAttr));
+        htmlEl.setAttribute('style', sanitizeCssColors(styleAttr));
       }
     }
 
