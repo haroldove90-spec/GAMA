@@ -185,20 +185,12 @@ export async function generatePDFInstance(elementId: string): Promise<jsPDF> {
     throw new Error(`Element with ID ${elementId} not found.`);
   }
 
-  // Set styles to ensure clean render
-  const originalStyle = element.style.cssText;
-  
-  // Force specific dimensions to look like a clean print sheet (800px is a solid width for letter aspect ratio)
-  element.style.width = '800px';
-  element.style.maxWidth = '800px';
-  element.style.backgroundColor = '#FFFFFF';
-
   // Arrays to store original style states for rollback
   const originalStyleSheets: { sheet: CSSStyleSheet; disabled: boolean }[] = [];
-  const originalInlineElements: { element: HTMLElement; originalStyle: string }[] = [];
   const detachedStyleNodes: { node: Element; parent: Node; nextSibling: Node | null }[] = [];
   let tempStyleTag: HTMLStyleElement | null = null;
   let originalAdoptedStyleSheets: any = null;
+  let container: HTMLDivElement | null = null;
 
   try {
     // 1. Gather all CSS rules in the document, sanitize them, and inject them as a single style tag
@@ -286,27 +278,59 @@ export async function generatePDFInstance(elementId: string): Promise<jsPDF> {
       document.adoptedStyleSheets = [];
     }
 
-    // 3. Traverse and sanitize inline oklch/oklab styles on ALL DOM elements
-    const allElements = document.querySelectorAll('*');
+    // 3. Create a clean, unscaled offscreen container in document.body
+    container = document.createElement('div');
+    container.style.position = 'fixed';
+    container.style.top = '-99999px';
+    container.style.left = '-99999px';
+    container.style.width = '800px';
+    container.style.height = '1100px';
+    container.style.overflow = 'hidden';
+    container.style.zIndex = '-9999';
+    container.style.pointerEvents = 'none';
+    container.style.backgroundColor = '#FFFFFF';
+    document.body.appendChild(container);
+
+    // Clone the element to render unscaled
+    const clone = element.cloneNode(true) as HTMLElement;
+    clone.style.transform = 'none';
+    clone.style.transformOrigin = 'unset';
+    clone.style.transition = 'none';
+    clone.style.animation = 'none';
+    clone.style.width = '800px';
+    clone.style.maxWidth = '800px';
+    clone.style.minWidth = '800px';
+    clone.style.height = '1100px';
+    clone.style.minHeight = '1100px';
+    clone.style.maxHeight = '1100px';
+    clone.style.position = 'relative';
+    clone.style.boxSizing = 'border-box';
+
+    // 4. Traverse and sanitize inline oklch/oklab styles on the CLONED element ONLY
+    const allElements = clone.querySelectorAll('*');
     for (const el of Array.from(allElements)) {
       const htmlEl = el as HTMLElement;
       const styleAttr = htmlEl.getAttribute('style');
       if (styleAttr && (styleAttr.includes('oklch') || styleAttr.includes('oklab'))) {
-        originalInlineElements.push({
-          element: htmlEl,
-          originalStyle: styleAttr,
-        });
         htmlEl.setAttribute('style', sanitizeCssColors(styleAttr));
       }
     }
+    const cloneStyleAttr = clone.getAttribute('style');
+    if (cloneStyleAttr && (cloneStyleAttr.includes('oklch') || cloneStyleAttr.includes('oklab'))) {
+      clone.setAttribute('style', sanitizeCssColors(cloneStyleAttr));
+    }
 
-    // 4. Render using html2canvas with optimal settings
-    const canvas = await html2canvas(element, {
+    container.appendChild(clone);
+
+    // 5. Render using html2canvas-pro with optimal settings
+    const canvas = await html2canvas(clone, {
       scale: 2, // Double resolution for crisp text
       useCORS: true,
       logging: false,
       allowTaint: true,
       backgroundColor: '#FFFFFF',
+      width: 800,
+      height: 1100,
       windowWidth: 800,
     });
 
@@ -330,6 +354,15 @@ export async function generatePDFInstance(elementId: string): Promise<jsPDF> {
     console.error('Error generating PDF:', error);
     throw error;
   } finally {
+    // Remove temporary container
+    if (container) {
+      try {
+        container.remove();
+      } catch (e) {
+        console.warn('Failed to remove temporary offscreen container:', e);
+      }
+    }
+
     // Restore the detached stylesheet nodes
     for (const item of detachedStyleNodes) {
       try {
@@ -340,15 +373,6 @@ export async function generatePDFInstance(elementId: string): Promise<jsPDF> {
         }
       } catch (e) {
         console.warn('Failed to restore detached style node:', e);
-      }
-    }
-
-    // Restore original inline styles
-    for (const item of originalInlineElements) {
-      try {
-        item.element.setAttribute('style', item.originalStyle);
-      } catch (e) {
-        console.warn('Failed to restore inline style:', e);
       }
     }
 
@@ -373,13 +397,6 @@ export async function generatePDFInstance(elementId: string): Promise<jsPDF> {
       } catch (e) {
         console.warn('Failed to remove temporary style tag:', e);
       }
-    }
-
-    // Restore the print element's styling
-    try {
-      element.style.cssText = originalStyle;
-    } catch (e) {
-      console.warn('Failed to restore element cssText:', e);
     }
   }
 }
