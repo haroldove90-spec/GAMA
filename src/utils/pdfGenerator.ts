@@ -1,4 +1,4 @@
-import html2canvas from 'html2canvas';
+import html2canvas from 'html2canvas-pro';
 import { jsPDF } from 'jspdf';
 
 /**
@@ -333,7 +333,11 @@ export async function generatePDFInstance(elementId: string): Promise<jsPDF> {
     // Restore the detached stylesheet nodes
     for (const item of detachedStyleNodes) {
       try {
-        item.parent.insertBefore(item.node, item.nextSibling);
+        if (item.nextSibling && item.nextSibling.parentNode === item.parent) {
+          item.parent.insertBefore(item.node, item.nextSibling);
+        } else {
+          item.parent.appendChild(item.node);
+        }
       } catch (e) {
         console.warn('Failed to restore detached style node:', e);
       }

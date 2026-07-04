@@ -54,23 +54,20 @@ export default function OrderPreview({ order, idToCapture }: OrderPreviewProps) 
       id="preview-outer-container"
     >
       <div 
-        className="relative overflow-visible flex justify-center w-full"
+        className="relative overflow-visible flex justify-center items-start"
         style={{
+          width: `${800 * scale}px`,
           height: `${1100 * scale}px`,
         }}
       >
         <div
           style={{
-            transform: `scale(${scale})`,
-            transformOrigin: 'top center',
             width: '800px',
             height: '1100px',
-            position: 'absolute',
-            top: 0,
-            left: '50%',
-            marginLeft: '-400px',
+            transform: `scale(${scale})`,
+            transformOrigin: 'top center',
+            flexShrink: 0,
           }}
-          className="flex-shrink-0"
         >
           {/* Container forced to Letter Aspect Ratio inside PDF Generator, styled beautifully here */}
           <div
