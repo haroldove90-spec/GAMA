@@ -164,12 +164,12 @@ export function sanitizeCssColors(cssText: string): string {
     }
   });
 
-  // 3. Robust fallbacks to replace any remaining un-matched oklch/oklab expressions (e.g. variables)
-  const genericOklchRegex = /oklch\([^)]*\)/gi;
-  result = result.replace(genericOklchRegex, 'rgb(100, 116, 139)');
+  // 3. Robust fallbacks to replace any remaining un-matched oklch/oklab expressions (e.g. variables with nested parentheses)
+  const genericOklchRegex = /oklch\((?:[^()]*|\([^()]*\))*\)/gi;
+  result = result.replace(genericOklchRegex, 'rgb(0, 130, 154)'); // fallbacks to primary teal
 
-  const genericOklabRegex = /oklab\([^)]*\)/gi;
-  result = result.replace(genericOklabRegex, 'rgb(100, 116, 139)');
+  const genericOklabRegex = /oklab\((?:[^()]*|\([^()]*\))*\)/gi;
+  result = result.replace(genericOklabRegex, 'rgb(0, 130, 154)');
 
   return result;
 }
@@ -196,6 +196,7 @@ export async function generatePDFInstance(elementId: string): Promise<jsPDF> {
   // Arrays to store original style states for rollback
   const originalStyleSheets: { sheet: CSSStyleSheet; disabled: boolean }[] = [];
   const originalInlineElements: { element: HTMLElement; originalStyle: string }[] = [];
+  const detachedStyleNodes: { node: Element; parent: Node; nextSibling: Node | null }[] = [];
   let tempStyleTag: HTMLStyleElement | null = null;
   let originalAdoptedStyleSheets: any = null;
 
@@ -254,6 +255,20 @@ export async function generatePDFInstance(elementId: string): Promise<jsPDF> {
     tempStyleTag.textContent = sanitizedCss;
     document.head.appendChild(tempStyleTag);
 
+    // 2. Detach all other stylesheets so html2canvas CANNOT clone or parse them
+    const allStyleNodes = Array.from(document.querySelectorAll('style, link[rel="stylesheet"]'));
+    for (const node of allStyleNodes) {
+      if (node === tempStyleTag) continue;
+      if (node.parentNode) {
+        detachedStyleNodes.push({
+          node,
+          parent: node.parentNode,
+          nextSibling: node.nextSibling,
+        });
+        node.remove();
+      }
+    }
+
     // Disable all other stylesheets so html2canvas doesn't try to parse them
     for (let i = 0; i < document.styleSheets.length; i++) {
       const sheet = document.styleSheets[i];
@@ -271,7 +286,7 @@ export async function generatePDFInstance(elementId: string): Promise<jsPDF> {
       document.adoptedStyleSheets = [];
     }
 
-    // 2. Traverse and sanitize inline oklch/oklab styles on ALL DOM elements
+    // 3. Traverse and sanitize inline oklch/oklab styles on ALL DOM elements
     const allElements = document.querySelectorAll('*');
     for (const el of Array.from(allElements)) {
       const htmlEl = el as HTMLElement;
@@ -285,7 +300,7 @@ export async function generatePDFInstance(elementId: string): Promise<jsPDF> {
       }
     }
 
-    // 3. Render using html2canvas with optimal settings
+    // 4. Render using html2canvas with optimal settings
     const canvas = await html2canvas(element, {
       scale: 2, // Double resolution for crisp text
       useCORS: true,
@@ -315,6 +330,15 @@ export async function generatePDFInstance(elementId: string): Promise<jsPDF> {
     console.error('Error generating PDF:', error);
     throw error;
   } finally {
+    // Restore the detached stylesheet nodes
+    for (const item of detachedStyleNodes) {
+      try {
+        item.parent.insertBefore(item.node, item.nextSibling);
+      } catch (e) {
+        console.warn('Failed to restore detached style node:', e);
+      }
+    }
+
     // Restore original inline styles
     for (const item of originalInlineElements) {
       try {

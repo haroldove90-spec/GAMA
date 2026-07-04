@@ -54,18 +54,21 @@ export default function OrderPreview({ order, idToCapture }: OrderPreviewProps) 
       id="preview-outer-container"
     >
       <div 
-        className="flex-shrink-0 overflow-visible flex justify-center"
+        className="relative overflow-visible flex justify-center w-full"
         style={{
-          width: `${800 * scale}px`,
           height: `${1100 * scale}px`,
         }}
       >
         <div
           style={{
             transform: `scale(${scale})`,
-            transformOrigin: 'top left',
+            transformOrigin: 'top center',
             width: '800px',
             height: '1100px',
+            position: 'absolute',
+            top: 0,
+            left: '50%',
+            marginLeft: '-400px',
           }}
           className="flex-shrink-0"
         >
