@@ -1,0 +1,6 @@
+{
+  "name": "Orden de Servicio Digital GAMA",
+  "description": "Herramienta digital para registrar, gestionar y exportar órdenes de servicio a PDF, y enviarlas directamente por WhatsApp al cliente.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
