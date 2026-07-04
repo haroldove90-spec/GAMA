@@ -164,6 +164,13 @@ export function sanitizeCssColors(cssText: string): string {
     }
   });
 
+  // 3. Robust fallbacks to replace any remaining un-matched oklch/oklab expressions (e.g. variables)
+  const genericOklchRegex = /oklch\([^)]*\)/gi;
+  result = result.replace(genericOklchRegex, 'rgb(100, 116, 139)');
+
+  const genericOklabRegex = /oklab\([^)]*\)/gi;
+  result = result.replace(genericOklabRegex, 'rgb(100, 116, 139)');
+
   return result;
 }
 
@@ -186,56 +193,82 @@ export async function generatePDFInstance(elementId: string): Promise<jsPDF> {
   element.style.maxWidth = '800px';
   element.style.backgroundColor = '#FFFFFF';
 
-  // Array to store original style states for rollback
-  const originalStyleElements: { element: HTMLStyleElement | HTMLLinkElement; text?: string; disabled: boolean }[] = [];
+  // Arrays to store original style states for rollback
+  const originalStyleSheets: { sheet: CSSStyleSheet; disabled: boolean }[] = [];
   const originalInlineElements: { element: HTMLElement; originalStyle: string }[] = [];
-  const tempStyleTags: HTMLStyleElement[] = [];
+  let tempStyleTag: HTMLStyleElement | null = null;
+  let originalAdoptedStyleSheets: any = null;
 
   try {
-    // 1. Traverse and sanitize document style tags & stylesheets
-    const styleElements = Array.from(document.querySelectorAll('style, link[rel="stylesheet"]'));
-    for (const el of styleElements) {
-      if (el.tagName === 'STYLE') {
-        const styleEl = el as HTMLStyleElement;
-        const originalText = styleEl.textContent || '';
-        originalStyleElements.push({
-          element: styleEl,
-          text: originalText,
-          disabled: styleEl.disabled,
-        });
-        
-        // Rewrite the styles in-place to use rgb fallback instead of oklch / oklab
-        styleEl.textContent = sanitizeCssColors(originalText);
-      } else if (el.tagName === 'LINK') {
-        const linkEl = el as HTMLLinkElement;
-        originalStyleElements.push({
-          element: linkEl,
-          disabled: linkEl.disabled,
-        });
+    // 1. Gather all CSS rules in the document, sanitize them, and inject them as a single style tag
+    let combinedCss = '';
+    
+    // Read from standard styleSheets
+    for (let i = 0; i < document.styleSheets.length; i++) {
+      const sheet = document.styleSheets[i];
+      try {
+        const rules = sheet.cssRules || sheet.rules;
+        if (rules) {
+          for (let j = 0; j < rules.length; j++) {
+            combinedCss += rules[j].cssText + '\n';
+          }
+        }
+      } catch (e) {
+        console.warn('Could not read cssRules directly (CORS?):', e);
+        if (sheet.href) {
+          try {
+            const response = await fetch(sheet.href);
+            if (response.ok) {
+              const cssText = await response.text();
+              combinedCss += cssText + '\n';
+            }
+          } catch (fetchErr) {
+            console.error('Failed to fetch cross-origin stylesheet:', sheet.href, fetchErr);
+          }
+        }
+      }
+    }
 
-        // Fetch cross-origin/local style sheets to override them
+    // Read from adoptedStyleSheets if they exist
+    if (document.adoptedStyleSheets) {
+      for (const sheet of document.adoptedStyleSheets) {
         try {
-          const response = await fetch(linkEl.href);
-          if (response.ok) {
-            const cssText = await response.text();
-            if (cssText.includes('oklch') || cssText.includes('oklab')) {
-              const sanitizedCss = sanitizeCssColors(cssText);
-              
-              // Create a temp style tag to replace this link tag
-              const tempStyle = document.createElement('style');
-              tempStyle.className = 'temp-pdf-style';
-              tempStyle.textContent = sanitizedCss;
-              document.head.appendChild(tempStyle);
-              tempStyleTags.push(tempStyle);
-              
-              // Temporarily disable the original link stylesheet
-              linkEl.disabled = true;
+          const rules = sheet.cssRules;
+          if (rules) {
+            for (let j = 0; j < rules.length; j++) {
+              combinedCss += rules[j].cssText + '\n';
             }
           }
         } catch (e) {
-          console.warn('Could not sanitize link stylesheet:', linkEl.href, e);
+          console.warn('Could not read adoptedStyleSheet rules:', e);
         }
       }
+    }
+
+    // Sanitize the consolidated CSS to remove oklch & oklab
+    const sanitizedCss = sanitizeCssColors(combinedCss);
+
+    // Create the single, sanitized style tag
+    tempStyleTag = document.createElement('style');
+    tempStyleTag.id = 'temp-pdf-style';
+    tempStyleTag.textContent = sanitizedCss;
+    document.head.appendChild(tempStyleTag);
+
+    // Disable all other stylesheets so html2canvas doesn't try to parse them
+    for (let i = 0; i < document.styleSheets.length; i++) {
+      const sheet = document.styleSheets[i];
+      if (sheet.ownerNode === tempStyleTag) continue;
+      originalStyleSheets.push({
+        sheet,
+        disabled: sheet.disabled,
+      });
+      sheet.disabled = true;
+    }
+
+    // Temporarily clear adopted stylesheets
+    if (document.adoptedStyleSheets) {
+      originalAdoptedStyleSheets = document.adoptedStyleSheets;
+      document.adoptedStyleSheets = [];
     }
 
     // 2. Traverse and sanitize inline oklch/oklab styles on ALL DOM elements
@@ -262,27 +295,6 @@ export async function generatePDFInstance(elementId: string): Promise<jsPDF> {
       windowWidth: 800,
     });
 
-    // Restore original inline styles
-    for (const item of originalInlineElements) {
-      item.element.setAttribute('style', item.originalStyle);
-    }
-
-    // Restore original stylesheet styles
-    for (const item of originalStyleElements) {
-      if (item.element.tagName === 'STYLE') {
-        item.element.textContent = item.text || '';
-        (item.element as HTMLStyleElement).disabled = item.disabled;
-      } else if (item.element.tagName === 'LINK') {
-        (item.element as HTMLLinkElement).disabled = item.disabled;
-      }
-    }
-
-    // Remove any temporary styles we injected
-    tempStyleTags.forEach((tag) => tag.remove());
-
-    // Restore the print element's styling
-    element.style.cssText = originalStyle;
-
     const imgData = canvas.toDataURL('image/png');
     
     // Create PDF with Letter size (8.5 x 11 inches)
@@ -300,23 +312,47 @@ export async function generatePDFInstance(elementId: string): Promise<jsPDF> {
     
     return pdf;
   } catch (error) {
-    // Ensure styles are restored on error
-    for (const item of originalInlineElements) {
-      item.element.setAttribute('style', item.originalStyle);
-    }
-    for (const item of originalStyleElements) {
-      if (item.element.tagName === 'STYLE') {
-        item.element.textContent = item.text || '';
-        (item.element as HTMLStyleElement).disabled = item.disabled;
-      } else if (item.element.tagName === 'LINK') {
-        (item.element as HTMLLinkElement).disabled = item.disabled;
-      }
-    }
-    tempStyleTags.forEach((tag) => tag.remove());
-    element.style.cssText = originalStyle;
-    
     console.error('Error generating PDF:', error);
     throw error;
+  } finally {
+    // Restore original inline styles
+    for (const item of originalInlineElements) {
+      try {
+        item.element.setAttribute('style', item.originalStyle);
+      } catch (e) {
+        console.warn('Failed to restore inline style:', e);
+      }
+    }
+
+    // Restore original stylesheet states
+    for (const item of originalStyleSheets) {
+      try {
+        item.sheet.disabled = item.disabled;
+      } catch (e) {
+        console.warn('Failed to restore stylesheet state:', e);
+      }
+    }
+
+    // Restore adoptedStyleSheets
+    if (originalAdoptedStyleSheets && document.adoptedStyleSheets) {
+      document.adoptedStyleSheets = originalAdoptedStyleSheets;
+    }
+
+    // Remove the temporary style tag
+    if (tempStyleTag) {
+      try {
+        tempStyleTag.remove();
+      } catch (e) {
+        console.warn('Failed to remove temporary style tag:', e);
+      }
+    }
+
+    // Restore the print element's styling
+    try {
+      element.style.cssText = originalStyle;
+    } catch (e) {
+      console.warn('Failed to restore element cssText:', e);
+    }
   }
 }
 
