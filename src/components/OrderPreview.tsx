@@ -80,7 +80,7 @@ export default function OrderPreview({ order, idToCapture }: OrderPreviewProps) 
           <div className="flex justify-between items-start mb-4" id="preview-header">
             {/* Un-clipped Gama Logo */}
             <div className="flex items-center gap-3">
-              <div className="relative w-24 h-16 flex-shrink-0 flex items-center justify-center bg-white rounded-lg p-1 border border-slate-200/55 shadow-sm">
+              <div className="relative w-32 h-24 flex-shrink-0 flex items-center justify-center bg-white rounded-lg p-1 border border-slate-200/55 shadow-sm">
                 <img 
                   src="/gama.png" 
                   alt="GAMA Logo" 
