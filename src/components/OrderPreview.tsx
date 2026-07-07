@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { ServiceOrder } from '../types';
 import { Phone, Mail, MapPin, ShieldCheck, Check, Laptop, Volume2, Monitor, Home } from 'lucide-react';
+import { GAMA_LOGO_BASE64 } from '../utils/logoBase64';
 
 interface OrderPreviewProps {
   order: ServiceOrder;
@@ -9,7 +10,28 @@ interface OrderPreviewProps {
 
 export default function OrderPreview({ order, idToCapture }: OrderPreviewProps) {
   const [scale, setScale] = useState(1);
+  const [actualHeight, setActualHeight] = useState(1100);
   const containerRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const observer = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        // Measure real scrollHeight of the inner div containing all content
+        if (entry.target) {
+          setActualHeight(entry.target.scrollHeight || entry.contentRect.height || 1100);
+        }
+      }
+    });
+
+    if (contentRef.current) {
+      observer.observe(contentRef.current);
+    }
+
+    return () => {
+      observer.disconnect();
+    };
+  }, []);
 
   useEffect(() => {
     const handleResize = () => {
@@ -57,13 +79,13 @@ export default function OrderPreview({ order, idToCapture }: OrderPreviewProps) 
         className="relative overflow-visible flex justify-center items-start"
         style={{
           width: `${800 * scale}px`,
-          height: `${1100 * scale}px`,
+          height: `${actualHeight * scale}px`,
         }}
       >
         <div
           style={{
             width: '800px',
-            height: '1100px',
+            height: `${actualHeight}px`,
             transform: `scale(${scale})`,
             transformOrigin: 'top center',
             flexShrink: 0,
@@ -72,59 +94,59 @@ export default function OrderPreview({ order, idToCapture }: OrderPreviewProps) 
           {/* Container forced to Letter Aspect Ratio inside PDF Generator, styled beautifully here */}
           <div
             id={idToCapture}
+            ref={contentRef}
             className="bg-white w-[800px] min-h-[1100px] p-6 shadow-md relative text-slate-800 font-sans select-none flex flex-col justify-between"
             style={{ boxSizing: 'border-box' }}
           >
         <div>
-          {/* HEADER SECTION */}
-          <div className="flex justify-between items-start mb-4" id="preview-header">
-            {/* Un-clipped Gama Logo */}
-            <div className="flex items-center gap-3">
-              <div className="relative w-32 h-24 flex-shrink-0 flex items-center justify-center bg-white rounded-lg p-1 border border-slate-200/55 shadow-sm">
-                <img 
-                  src="/gama.png" 
-                  alt="GAMA Logo" 
-                  className="w-full h-full object-contain"
-                  referrerPolicy="no-referrer"
-                />
-              </div>
+          {/* Centered 500px Proportional GAMA Logo (Square, 500x500 pixels) */}
+          <div className="flex justify-center w-full mb-6" id="preview-logo-centered">
+            <div className="relative w-[500px] h-[500px] flex-shrink-0 flex items-center justify-center bg-white rounded-2xl p-2 border border-slate-200/60 shadow-md">
+              <img 
+                src={GAMA_LOGO_BASE64} 
+                alt="GAMA Logo" 
+                className="w-full h-full object-contain"
+              />
+            </div>
+          </div>
+
+          {/* HEADER BRAND & CONTACT SECTION */}
+          <div className="flex justify-between items-center mb-6 w-full" id="preview-header">
+            {/* Brand Center */}
+            <div>
+              <h1 className="text-2xl font-extrabold text-[#002D54] leading-tight uppercase tracking-wide">
+                Centro de Reparación
+              </h1>
+              <h2 className="text-xl font-bold text-[#00829A] leading-tight uppercase tracking-normal">
+                y Mantenimiento
+              </h2>
               
-              {/* Brand Center */}
-              <div>
-                <h1 className="text-xl font-extrabold text-[#002D54] leading-none uppercase tracking-wide">
-                  Centro de Reparación
-                </h1>
-                <h2 className="text-lg font-bold text-[#00829A] leading-tight uppercase tracking-normal">
-                  y Mantenimiento
-                </h2>
-                
-                {/* Slanted badge matching the image logo */}
-                <div className="flex items-center gap-2 mt-1">
-                  <div className="bg-[#002D54] text-white px-5 py-1.5 font-black text-xl italic tracking-wider transform -skew-x-12 rounded-sm shadow-sm">
-                    GAMA
-                  </div>
-                  <div className="border-l-2 border-slate-300 h-8 mx-1"></div>
-                  <div className="text-left">
-                    <span className="block text-[10px] text-slate-500 font-semibold uppercase leading-none">Formato Único</span>
-                    <span className="text-xs font-black text-[#002D54] tracking-wider uppercase leading-none">Orden de Servicio</span>
-                  </div>
+              {/* Slanted badge matching the image logo */}
+              <div className="flex items-center gap-2 mt-2">
+                <div className="bg-[#002D54] text-white px-5 py-1.5 font-black text-2xl italic tracking-wider transform -skew-x-12 rounded-sm shadow-sm">
+                  GAMA
+                </div>
+                <div className="border-l-2 border-slate-300 h-10 mx-1"></div>
+                <div className="text-left">
+                  <span className="block text-[11px] text-slate-500 font-semibold uppercase leading-none">Formato Único</span>
+                  <span className="text-sm font-black text-[#002D54] tracking-wider uppercase leading-none">Orden de Servicio</span>
                 </div>
               </div>
             </div>
 
             {/* Info Badge (Right dark card) */}
-            <div className="bg-[#002D54] text-white rounded-2xl p-4 w-[280px] text-[11px] shadow-sm flex flex-col gap-2">
+            <div className="bg-[#002D54] text-white rounded-2xl p-4 w-[320px] text-xs shadow-md flex flex-col gap-2.5">
               <div className="flex items-center gap-2">
-                <Phone className="w-3.5 h-3.5 text-[#00829A] flex-shrink-0" />
+                <Phone className="w-4 h-4 text-[#00829A] flex-shrink-0" />
                 <span className="font-semibold">Tel: 554045 5815</span>
               </div>
               <div className="flex items-center gap-2">
-                <Mail className="w-3.5 h-3.5 text-[#00829A] flex-shrink-0" />
-                <span className="truncate">gamaortega757@gmail.com</span>
+                <Mail className="w-4 h-4 text-[#00829A] flex-shrink-0" />
+                <span className="truncate font-medium">gamaortega757@gmail.com</span>
               </div>
               <div className="flex items-start gap-2">
-                <MapPin className="w-3.5 h-3.5 text-[#00829A] mt-0.5 flex-shrink-0" />
-                <span className="leading-tight text-slate-200">
+                <MapPin className="w-4 h-4 text-[#00829A] mt-0.5 flex-shrink-0" />
+                <span className="leading-snug text-slate-200">
                   Calle Barcelona entre Sabadell y Bilbao, San Juan Xalpa, Iztapalapa
                 </span>
               </div>
