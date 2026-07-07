@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { ServiceOrder } from '../types';
 import { Phone, Mail, MapPin, ShieldCheck, Check, Laptop, Volume2, Monitor, Home } from 'lucide-react';
+import { GAMA_LOGO_BASE64 } from '../utils/logoBase64';
 
 interface OrderPreviewProps {
   order: ServiceOrder;
@@ -82,7 +83,7 @@ export default function OrderPreview({ order, idToCapture }: OrderPreviewProps) 
             <div className="flex items-center gap-3">
               <div className="relative w-32 h-24 flex-shrink-0 flex items-center justify-center bg-white rounded-lg p-1 border border-slate-200/55 shadow-sm">
                 <img 
-                  src="/gama.png" 
+                  src={GAMA_LOGO_BASE64} 
                   alt="GAMA Logo" 
                   className="w-full h-full object-contain"
                   referrerPolicy="no-referrer"
