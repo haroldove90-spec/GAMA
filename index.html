@@ -3,7 +3,20 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Gama Orden de Servicio</title>
+    <title>Gama</title>
+    <link rel="manifest" href="/manifest.json" />
+    <meta name="theme-color" content="#0f172a" />
+    <link rel="icon" type="image/png" href="/gamaicono.png" />
+    <link rel="apple-touch-icon" href="/gamaicono.png" />
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/sw.js')
+            .then(reg => console.log('Service Worker registrado con éxito:', reg.scope))
+            .catch(err => console.error('Fallo al registrar Service Worker:', err));
+        });
+      }
+    </script>
   </head>
   <body>
     <div id="root"></div>

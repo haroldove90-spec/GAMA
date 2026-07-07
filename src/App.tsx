@@ -109,6 +109,53 @@ export default function App() {
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
   const [copiedOrderId, setCopiedOrderId] = useState<string | null>(null);
 
+  // PWA states
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+  const [showInstallBtn, setShowInstallBtn] = useState(false);
+  const [showPwaModal, setShowPwaModal] = useState(false);
+
+  // Listen to beforeinstallprompt and manage installation state
+  useEffect(() => {
+    const handleBeforeInstallPrompt = (e: Event) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+      setShowInstallBtn(true);
+    };
+
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+
+    // Check if running as standalone
+    if (window.matchMedia('(display-mode: standalone)').matches || (window.navigator as any).standalone) {
+      setShowInstallBtn(false);
+    } else {
+      // By default, let the install button be visible so users can open our custom PWA guide even if event has not fired yet!
+      setShowInstallBtn(true);
+    }
+
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    };
+  }, []);
+
+  const handleInstallClick = async () => {
+    if (deferredPrompt) {
+      deferredPrompt.prompt();
+      try {
+        const { outcome } = await deferredPrompt.userChoice;
+        console.log(`User response to install: ${outcome}`);
+        if (outcome === 'accepted') {
+          setDeferredPrompt(null);
+          setShowInstallBtn(false);
+        }
+      } catch (err) {
+        console.error('Error in install flow:', err);
+      }
+    } else {
+      // Trigger the custom instructions modal for platforms that do not support beforeinstallprompt (like iOS)
+      setShowPwaModal(true);
+    }
+  };
+
   // Load orders from LocalStorage on mount
   useEffect(() => {
     const saved = localStorage.getItem('gama_service_orders');
@@ -253,28 +300,41 @@ export default function App() {
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col antialiased">
       {/* Brand Navbar */}
-      <header className="bg-slate-900 text-white px-6 py-4 flex justify-between items-center shadow-lg sticky top-0 z-40 shrink-0">
-        <div className="flex items-center gap-3">
-          {/* Embedded Logo matching theme's square italic brand mark */}
+      <header className="bg-slate-900 text-white px-4 sm:px-6 py-4 flex flex-col md:flex-row justify-between items-center gap-4 shadow-lg sticky top-0 z-40 shrink-0">
+        <div className="flex items-center gap-3 w-full md:w-auto">
+          {/* Un-clipped high fidelity local logo */}
           <img 
-            src="https://appdesignproyectos.com/gama.png" 
+            src="/gama.png" 
             alt="Logo GAMA" 
-            className="w-10 h-10 object-contain rounded-full cursor-pointer bg-white p-0.5 hover:scale-105 transition-transform border border-slate-700 shadow-md"
+            className="w-14 h-11 object-contain rounded-lg cursor-pointer bg-white p-1 hover:scale-105 transition-transform border border-slate-700 shadow-md"
             onClick={() => setCurrentView('list')}
-            crossOrigin="anonymous"
             referrerPolicy="no-referrer"
           />
           <div>
-            <h1 className="text-base font-extrabold leading-none tracking-tight">GAMA Digital</h1>
-            <p className="text-[10px] text-slate-400 uppercase tracking-widest mt-1">Gestión de Órdenes v2.5</p>
+            <h1 className="text-sm sm:text-base font-extrabold leading-tight tracking-tight uppercase text-blue-400">
+              Centro de reparación y mantenimiento
+            </h1>
+            <p className="text-[10px] text-slate-400 uppercase tracking-widest font-semibold mt-0.5">
+              Gestión de servicios
+            </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 w-full md:w-auto justify-end">
+          <div className="flex items-center gap-2 flex-wrap justify-end">
+            {showInstallBtn && (
+              <button
+                onClick={handleInstallClick}
+                className="bg-amber-500 hover:bg-amber-600 active:bg-amber-700 text-slate-900 px-3.5 py-2 rounded-xl text-xs font-black tracking-wide uppercase transition-all duration-200 flex items-center gap-1.5 cursor-pointer shadow-md shadow-amber-500/15 animate-bounce"
+                id="btn-install-pwa"
+              >
+                <Smartphone className="w-3.5 h-3.5" />
+                Instalar App
+              </button>
+            )}
             <button
               onClick={() => setCurrentView('list')}
-              className={`px-4 py-2 rounded-lg text-xs font-bold tracking-wide uppercase transition-all duration-200 cursor-pointer ${
+              className={`px-4 py-2 rounded-xl text-xs font-bold tracking-wide uppercase transition-all duration-200 cursor-pointer ${
                 currentView === 'list' 
                   ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20' 
                   : 'text-slate-300 hover:bg-slate-800 hover:text-white'
@@ -285,7 +345,7 @@ export default function App() {
             </button>
             <button
               onClick={handleNewOrder}
-              className={`px-4 py-2 rounded-lg text-xs font-bold tracking-wide uppercase transition-all duration-200 cursor-pointer flex items-center gap-1 ${
+              className={`px-4 py-2 rounded-xl text-xs font-bold tracking-wide uppercase transition-all duration-200 cursor-pointer flex items-center gap-1 ${
                 currentView === 'form' && !isEditing 
                   ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20' 
                   : 'bg-slate-800 text-white hover:bg-slate-700 border border-slate-700 shadow-sm'
@@ -427,6 +487,71 @@ export default function App() {
           <span className="text-[11px] text-slate-500">Formato de Órdenes Digitales Optimizado para Dispositivos Móviles</span>
         </div>
       </footer>
+
+      {/* PWA Instruction Modal */}
+      {showPwaModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/85 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl max-w-md w-full shadow-2xl border border-slate-100 overflow-hidden text-slate-800 animate-in fade-in zoom-in duration-200">
+            {/* Modal Header */}
+            <div className="bg-slate-900 text-white p-5 flex justify-between items-center">
+              <div className="flex items-center gap-2.5">
+                <img src="/gamaicono.png" alt="Icono Gama" className="w-8 h-8 rounded-lg bg-white p-0.5 object-contain" />
+                <div>
+                  <h3 className="font-extrabold text-sm uppercase tracking-wide">Instalar App Gama</h3>
+                  <p className="text-[10px] text-slate-300">Lleva el centro de reparación en tu bolsillo</p>
+                </div>
+              </div>
+              <button 
+                onClick={() => setShowPwaModal(false)}
+                className="text-slate-400 hover:text-white transition-colors p-1"
+              >
+                ✕
+              </button>
+            </div>
+            
+            {/* Modal Body */}
+            <div className="p-6 space-y-5">
+              <p className="text-xs text-slate-500 leading-relaxed">
+                Nuestra aplicación se puede instalar como una <strong>PWA (Progressive Web App)</strong> para que funcione sin conexión, cargue al instante y tenga acceso directo desde tu pantalla de inicio.
+              </p>
+              
+              <div className="space-y-4">
+                {/* Android / Chrome */}
+                <div className="border border-slate-100 rounded-xl p-3 bg-slate-50 flex gap-3">
+                  <div className="bg-blue-100 text-blue-600 rounded-lg p-2 h-fit text-sm">🤖</div>
+                  <div>
+                    <h4 className="font-bold text-xs text-slate-700">En Android / Google Chrome:</h4>
+                    <p className="text-[11px] text-slate-500 leading-relaxed mt-0.5">
+                      Pulsa el botón de menú <strong className="text-slate-700">(tres puntos verticalmente)</strong> en la barra superior derecha de Chrome y selecciona <strong>"Instalar aplicación"</strong> o <strong>"Agregar a pantalla principal"</strong>.
+                    </p>
+                  </div>
+                </div>
+                
+                {/* iOS / Safari */}
+                <div className="border border-slate-100 rounded-xl p-3 bg-slate-50 flex gap-3">
+                  <div className="bg-amber-100 text-amber-600 rounded-lg p-2 h-fit text-sm">🍎</div>
+                  <div>
+                    <h4 className="font-bold text-xs text-slate-700">En iPhone / iPad (Safari):</h4>
+                    <p className="text-[11px] text-slate-500 leading-relaxed mt-0.5">
+                      Pulsa el botón de <strong>"Compartir"</strong> <span className="text-slate-700 font-bold">(el cuadro con una flecha apuntando hacia arriba)</span> en el menú inferior y desplázate hacia abajo para seleccionar <strong>"Agregar a inicio"</strong>.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            {/* Modal Footer */}
+            <div className="bg-slate-50 px-6 py-4 border-t border-slate-100 flex justify-end">
+              <button
+                onClick={() => setShowPwaModal(false)}
+                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold shadow-md cursor-pointer transition-colors"
+              >
+                Entendido
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
