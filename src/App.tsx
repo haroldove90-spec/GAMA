@@ -3,11 +3,11 @@ import { ServiceOrder } from './types';
 import OrderList from './components/OrderList';
 import OrderForm from './components/OrderForm';
 import OrderPreview from './components/OrderPreview';
-import { downloadOrderPDF, getOrderPDFBlob, formatWhatsAppMessage } from './utils/pdfGenerator';
+import { downloadOrderPDF, getOrderPDFBlob, formatWhatsAppMessage, downloadOrderImage, getOrderImageBlob } from './utils/pdfGenerator';
 import { GAMA_LOGO_BASE64, GAMA_ICONO_BASE64 } from './utils/logoBase64';
 import { 
   Wrench, Share2, Smartphone, Download, Edit3, ArrowLeft, 
-  Check, Copy, Sparkles, HelpCircle 
+  Check, Copy, Sparkles, HelpCircle, Image
 } from 'lucide-react';
 
 // Default mock seed data for demonstration
@@ -108,6 +108,7 @@ export default function App() {
   const [selectedOrder, setSelectedOrder] = useState<ServiceOrder | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
+  const [isGeneratingImage, setIsGeneratingImage] = useState(false);
   const [copiedOrderId, setCopiedOrderId] = useState<string | null>(null);
 
   // PWA states
@@ -252,6 +253,72 @@ export default function App() {
     // WhatsApp Send API URL
     const waUrl = `https://api.whatsapp.com/send?phone=${cleanPhone}&text=${encodeURIComponent(message)}`;
     window.open(waUrl, '_blank');
+  };
+
+  // Generate and share PNG image of the service order
+  const handleShareImage = async (order: ServiceOrder) => {
+    setIsGeneratingImage(true);
+    try {
+      const blob = await getOrderImageBlob(`print-capture-${order.id}`);
+      
+      // Try to write the PNG image directly to the system clipboard
+      let copiedToClipboard = false;
+      try {
+        if (navigator.clipboard && navigator.clipboard.write) {
+          const item = new ClipboardItem({ [blob.type]: blob });
+          await navigator.clipboard.write([item]);
+          copiedToClipboard = true;
+        }
+      } catch (clipErr) {
+        console.warn('Clipboard write failed:', clipErr);
+      }
+
+      // Check for native mobile/desktop sharing support for image file
+      const file = new File([blob], `Orden_de_Servicio_GAMA_${order.noOrden}.png`, { type: 'image/png' });
+      
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share({
+          files: [file],
+          title: `Orden GAMA #${order.noOrden}`,
+          text: `Hola, le compartimos la Orden de Servicio GAMA #${order.noOrden} en formato imagen.`,
+        });
+        setIsGeneratingImage(false);
+        return;
+      }
+
+      // If sharing was not possible but clipboard copying was successful:
+      if (copiedToClipboard) {
+        alert('¡La imagen de la Orden se copió a tu portapapeles! Ahora abriremos el chat de WhatsApp del cliente para que puedas PEGARLA directamente presionando Ctrl+V o pegando en el móvil.');
+        const cleanPhone = order.cliente.telefono.replace(/\s+/g, '').replace('+', '');
+        const waUrl = `https://api.whatsapp.com/send?phone=${cleanPhone}`;
+        window.open(waUrl, '_blank');
+      } else {
+        // Fallback: download the image and then open WhatsApp
+        await downloadOrderImage(`print-capture-${order.id}`, order.noOrden);
+        alert('La imagen de la Orden se ha descargado en tu dispositivo. Puedes adjuntarla manualmente en el chat de WhatsApp del cliente que se abrirá a continuación.');
+        const cleanPhone = order.cliente.telefono.replace(/\s+/g, '').replace('+', '');
+        const waUrl = `https://api.whatsapp.com/send?phone=${cleanPhone}`;
+        window.open(waUrl, '_blank');
+      }
+    } catch (err) {
+      console.error('Error generating/sharing image:', err);
+      alert('Error al procesar la imagen de la orden. Por favor intente de nuevo.');
+    } finally {
+      setIsGeneratingImage(false);
+    }
+  };
+
+  // Download image directly
+  const handleDownloadImageOnly = async (order: ServiceOrder) => {
+    setIsGeneratingImage(true);
+    try {
+      await downloadOrderImage(`print-capture-${order.id}`, order.noOrden);
+    } catch (err) {
+      console.error('Error downloading image:', err);
+      alert('Error al descargar la imagen de la orden.');
+    } finally {
+      setIsGeneratingImage(false);
+    }
   };
 
   // Share to external networks using native mobile sharing
@@ -420,11 +487,47 @@ export default function App() {
                 {/* WhatsApp */}
                 <button
                   onClick={() => handleShareWhatsApp(selectedOrder)}
-                  className="px-3 py-2 bg-green-600 hover:bg-green-700 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+                  className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer"
                   id="btn-preview-wa"
+                  title="Enviar resumen en texto"
                 >
                   <Smartphone className="w-3.5 h-3.5" />
-                  WhatsApp
+                  Texto WA
+                </button>
+
+                {/* WhatsApp Imagen */}
+                <button
+                  disabled={isGeneratingImage}
+                  onClick={() => handleShareImage(selectedOrder)}
+                  className="px-3.5 py-2 bg-green-600 hover:bg-green-700 disabled:opacity-55 text-white rounded-xl text-xs font-black flex items-center justify-center gap-1.5 transition-all shadow-md shadow-green-500/20 cursor-pointer"
+                  id="btn-preview-wa-img"
+                >
+                  {isGeneratingImage ? (
+                    <span className="flex items-center gap-1">
+                      <span className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
+                      Procesando...
+                    </span>
+                  ) : (
+                    <>
+                      <Image className="w-3.5 h-3.5" />
+                      Enviar Imagen (WA)
+                    </>
+                  )}
+                </button>
+
+                {/* Descargar Imagen */}
+                <button
+                  disabled={isGeneratingImage}
+                  onClick={() => handleDownloadImageOnly(selectedOrder)}
+                  className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold flex items-center justify-center gap-1 transition-all cursor-pointer"
+                  id="btn-preview-dl-img"
+                >
+                  {isGeneratingImage ? (
+                    <span className="w-3.5 h-3.5 border-2 border-slate-400 border-t-slate-700 rounded-full animate-spin"></span>
+                  ) : (
+                    <Download className="w-3.5 h-3.5" />
+                  )}
+                  Descargar PNG
                 </button>
 
                 {/* Share social */}
@@ -463,9 +566,9 @@ export default function App() {
             <div className="bg-slate-100 border border-slate-200/50 p-3.5 rounded-xl text-xs text-slate-600 flex items-start gap-2.5">
               <span className="text-base text-blue-600 mt-0.5">💡</span>
               <div className="space-y-1">
-                <span className="font-bold text-slate-700 block">Sugerencia para envío móvil:</span>
+                <span className="font-bold text-slate-700 block">Sugerencia para envío de Imagen / PDF:</span>
                 <p className="leading-relaxed">
-                  Para enviar por WhatsApp, te recomendamos pulsar <strong>"Descargar PDF"</strong> para guardar el archivo en tu dispositivo, y luego pulsar <strong>"WhatsApp"</strong> para abrir la conversación de tu cliente y enviarle el archivo adjunto junto con el resumen de texto autogenerado.
+                  Para enviar la Orden de Servicio como imagen directamente al WhatsApp del cliente, pulsa <strong>"Enviar Imagen (WA)"</strong>. En teléfonos móviles se abrirá el menú nativo para compartir directamente. En computadoras se copiará la imagen al portapapeles y se abrirá el chat para que puedas pegarla con <strong>Ctrl+V</strong>.
                 </p>
               </div>
             </div>
