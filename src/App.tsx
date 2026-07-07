@@ -3,7 +3,6 @@ import { ServiceOrder } from './types';
 import OrderList from './components/OrderList';
 import OrderForm from './components/OrderForm';
 import OrderPreview from './components/OrderPreview';
-import { GAMA_LOGO_BASE64, GAMA_ICON_BASE64 } from './utils/logoBase64';
 import { downloadOrderPDF, getOrderPDFBlob, formatWhatsAppMessage } from './utils/pdfGenerator';
 import { 
   Wrench, Share2, Smartphone, Download, Edit3, ArrowLeft, 
@@ -305,10 +304,11 @@ export default function App() {
         <div className="flex items-center gap-3 w-full md:w-auto">
           {/* Un-clipped high fidelity local logo */}
           <img 
-            src={GAMA_LOGO_BASE64} 
+            src="/gama.png" 
             alt="Logo GAMA" 
             className="w-14 h-11 object-contain rounded-lg cursor-pointer bg-white p-1 hover:scale-105 transition-transform border border-slate-700 shadow-md"
             onClick={() => setCurrentView('list')}
+            referrerPolicy="no-referrer"
           />
           <div>
             <h1 className="text-sm sm:text-base font-extrabold leading-tight tracking-tight uppercase text-blue-400">
@@ -495,7 +495,7 @@ export default function App() {
             {/* Modal Header */}
             <div className="bg-slate-900 text-white p-5 flex justify-between items-center">
               <div className="flex items-center gap-2.5">
-                <img src={GAMA_ICON_BASE64} alt="Icono Gama" className="w-8 h-8 rounded-lg bg-white p-0.5 object-contain" />
+                <img src="/gamaicono.png" alt="Icono Gama" className="w-8 h-8 rounded-lg bg-white p-0.5 object-contain" />
                 <div>
                   <h3 className="font-extrabold text-sm uppercase tracking-wide">Instalar App Gama</h3>
                   <p className="text-[10px] text-slate-300">Lleva el centro de reparación en tu bolsillo</p>
