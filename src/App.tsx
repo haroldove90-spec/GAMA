@@ -256,12 +256,14 @@ export default function App() {
       <header className="bg-slate-900 text-white px-6 py-4 flex justify-between items-center shadow-lg sticky top-0 z-40 shrink-0">
         <div className="flex items-center gap-3">
           {/* Embedded Logo matching theme's square italic brand mark */}
-          <div 
-            className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center font-extrabold text-xl italic text-white shadow-md shadow-blue-500/20 cursor-pointer hover:bg-blue-700 transition-colors"
+          <img 
+            src="https://appdesignproyectos.com/gama.png" 
+            alt="Logo GAMA" 
+            className="w-10 h-10 object-contain rounded-full cursor-pointer bg-white p-0.5 hover:scale-105 transition-transform border border-slate-700 shadow-md"
             onClick={() => setCurrentView('list')}
-          >
-            G
-          </div>
+            crossOrigin="anonymous"
+            referrerPolicy="no-referrer"
+          />
           <div>
             <h1 className="text-base font-extrabold leading-none tracking-tight">GAMA Digital</h1>
             <p className="text-[10px] text-slate-400 uppercase tracking-widest mt-1">Gestión de Órdenes v2.5</p>

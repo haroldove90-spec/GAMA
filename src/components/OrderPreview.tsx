@@ -80,43 +80,14 @@ export default function OrderPreview({ order, idToCapture }: OrderPreviewProps) 
           <div className="flex justify-between items-start mb-4" id="preview-header">
             {/* Logo Gama Circle */}
             <div className="flex items-center gap-3">
-              <div className="relative w-20 h-20 flex-shrink-0">
-                {/* SVG circular logo imitating image */}
-                <svg viewBox="0 0 100 100" className="w-full h-full">
-                  <defs>
-                    <path id="textPathTop" d="M 15,50 A 35,35 0 0,1 85,50" fill="none" />
-                    <path id="textPathBottom" d="M 85,50 A 35,35 0 0,1 15,50" fill="none" />
-                    <linearGradient id="gamaGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                      <stop offset="0%" stopColor="#00829A" />
-                      <stop offset="100%" stopColor="#002D54" />
-                    </linearGradient>
-                  </defs>
-                  
-                  {/* Outer circle */}
-                  <circle cx="50" cy="50" r="48" fill="none" stroke="#002D54" strokeWidth="2" />
-                  {/* Inner filled circle */}
-                  <circle cx="50" cy="50" r="38" fill="url(#gamaGrad)" />
-                  
-                  {/* Rotating circular text */}
-                  <text fontSize="6.5" fontWeight="bold" fill="#002D54">
-                    <textPath href="#textPathTop" startOffset="50%" textAnchor="middle">
-                      CENTRO DE REPARACIÓN
-                    </textPath>
-                  </text>
-                  <text fontSize="6.5" fontWeight="bold" fill="#002D54">
-                    <textPath href="#textPathBottom" startOffset="50%" textAnchor="middle">
-                      Y MANTENIMIENTO
-                    </textPath>
-                  </text>
-                  
-                  {/* GAMA text center */}
-                  <text x="50" y="55" fontSize="16" fontWeight="900" fill="#FFFFFF" textAnchor="middle" letterSpacing="1">
-                    GAMA
-                  </text>
-                  
-                  {/* Little paper plane decoration */}
-                  <path d="M 52,38 L 62,35 L 58,45 L 56,41 Z" fill="#FFFFFF" opacity="0.9" />
-                </svg>
+              <div className="relative w-20 h-20 flex-shrink-0 flex items-center justify-center bg-white rounded-full">
+                <img 
+                  src="https://appdesignproyectos.com/gama.png" 
+                  alt="GAMA Logo" 
+                  className="w-full h-full object-contain"
+                  crossOrigin="anonymous"
+                  referrerPolicy="no-referrer"
+                />
               </div>
               
               {/* Brand Center */}
