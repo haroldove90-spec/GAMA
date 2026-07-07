@@ -301,44 +301,44 @@ export default function App() {
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col antialiased">
       {/* Brand Navbar */}
-      <header className="bg-slate-900 text-white px-4 sm:px-6 py-4 flex flex-col md:flex-row justify-between items-center gap-4 shadow-lg sticky top-0 z-40 shrink-0">
-        <div className="flex items-center gap-3 w-full md:w-auto">
+      <header className="bg-slate-900 text-white px-3 sm:px-6 py-3 sm:py-4 flex flex-col md:flex-row justify-between items-center gap-3 sm:gap-4 shadow-lg sticky top-0 z-40 shrink-0">
+        <div className="flex items-center gap-2.5 sm:gap-3 w-full md:w-auto">
           {/* Un-clipped high fidelity local logo */}
           <img 
             src={GAMA_LOGO_BASE64} 
             alt="Logo GAMA" 
-            className="w-14 h-11 object-contain rounded-lg cursor-pointer bg-white p-1 hover:scale-105 transition-transform border border-slate-700 shadow-md"
+            className="w-12 h-9 sm:w-14 sm:h-11 object-contain rounded-lg cursor-pointer bg-white p-1 hover:scale-105 transition-transform border border-slate-700 shadow-md"
             onClick={() => setCurrentView('list')}
             referrerPolicy="no-referrer"
           />
-          <div>
-            <h1 className="text-sm sm:text-base font-extrabold leading-tight tracking-tight uppercase text-blue-400">
-              Centro de reparación y mantenimiento
+          <div className="min-w-0 flex-1">
+            <h1 className="text-xs sm:text-sm md:text-base font-black leading-tight tracking-tight uppercase text-blue-400 truncate">
+              Centro de Reparación
             </h1>
-            <p className="text-[10px] text-slate-400 uppercase tracking-widest font-semibold mt-0.5">
-              Gestión de servicios
+            <p className="text-[9px] sm:text-[10px] text-slate-400 uppercase tracking-widest font-bold mt-0.5 truncate">
+              Servicio Técnico Especializado
             </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-2 w-full md:w-auto justify-end">
-          <div className="flex items-center gap-2 flex-wrap justify-end">
+        <div className="w-full md:w-auto">
+          <div className="flex flex-row flex-nowrap items-center gap-1.5 sm:gap-2 w-full md:w-auto justify-between sm:justify-end">
             {showInstallBtn && (
               <button
                 onClick={handleInstallClick}
-                className="bg-amber-500 hover:bg-amber-600 active:bg-amber-700 text-slate-900 px-3.5 py-2 rounded-xl text-xs font-black tracking-wide uppercase transition-all duration-200 flex items-center gap-1.5 cursor-pointer shadow-md shadow-amber-500/15 animate-bounce"
+                className="flex-1 sm:flex-initial h-9 sm:h-10 bg-amber-500 hover:bg-amber-600 active:bg-amber-700 text-slate-900 px-2.5 sm:px-4 rounded-xl text-[10px] sm:text-xs font-black tracking-wide uppercase transition-all duration-200 flex items-center justify-center gap-1 cursor-pointer shadow-md shadow-amber-500/15 min-w-0"
                 id="btn-install-pwa"
               >
-                <Smartphone className="w-3.5 h-3.5" />
-                Instalar App
+                <Smartphone className="w-3.5 h-3.5 shrink-0" />
+                <span className="truncate">Instalar</span>
               </button>
             )}
             <button
               onClick={() => setCurrentView('list')}
-              className={`px-4 py-2 rounded-xl text-xs font-bold tracking-wide uppercase transition-all duration-200 cursor-pointer ${
+              className={`flex-1 sm:flex-initial h-9 sm:h-10 px-2.5 sm:px-4 rounded-xl text-[10px] sm:text-xs font-bold tracking-wide uppercase transition-all duration-200 cursor-pointer flex items-center justify-center text-center truncate min-w-0 ${
                 currentView === 'list' 
                   ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20' 
-                  : 'text-slate-300 hover:bg-slate-800 hover:text-white'
+                  : 'text-slate-300 hover:bg-slate-800 hover:text-white bg-slate-800/40 border border-slate-700/60'
               }`}
               id="nav-btn-list"
             >
@@ -346,7 +346,7 @@ export default function App() {
             </button>
             <button
               onClick={handleNewOrder}
-              className={`px-4 py-2 rounded-xl text-xs font-bold tracking-wide uppercase transition-all duration-200 cursor-pointer flex items-center gap-1 ${
+              className={`flex-1 sm:flex-initial h-9 sm:h-10 px-2.5 sm:px-4 rounded-xl text-[10px] sm:text-xs font-bold tracking-wide uppercase transition-all duration-200 cursor-pointer flex items-center justify-center gap-1 truncate min-w-0 ${
                 currentView === 'form' && !isEditing 
                   ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20' 
                   : 'bg-slate-800 text-white hover:bg-slate-700 border border-slate-700 shadow-sm'
